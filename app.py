@@ -148,11 +148,9 @@ def processar_e_salvar_chamados(df: pd.DataFrame, nome_arquivo: str):
     total_existentes = 0
     erros = []
 
-    # Limitar ao 30 primeiros registros
-    df = df.head(30)
-
+    # Processa todas as linhas da planilha (sem limitação)
     for index, row in df.iterrows():
-        # Renovar token a cada 200 registros (não vai ocorrer com 30, mas mantém a lógica)
+        # Renovar token a cada 200 registros
         if index > 0 and index % 200 == 0:
             log_console("[Auth] Renovando token...")
             token = autenticar()
@@ -200,12 +198,13 @@ def login():
 # ======================================
 if "logado" not in st.session_state:
     st.session_state.logado = False
+
 if not st.session_state.logado:
     login()
     st.stop()
 
 # ======================================
-# ============ LAYOUT PRINC. ===========
+# ============ LAYOUT PRINCIPAL =========
 # ======================================
 st.title("Processador de Planilhas - Desk Manager")
 
