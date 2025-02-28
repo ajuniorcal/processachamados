@@ -4,7 +4,7 @@ import json
 import os
 import sys
 import pandas as pd
-import re
+import re  
 
 # ======================================
 # ============ CONFIG LOGIN ============
@@ -77,14 +77,12 @@ def buscar_chamado_existente(token, numero_chamado: str) -> bool or None:
     """Verifica se um chamado já existe na Desk Manager."""
     headers = {"Authorization": token}
     payload = {"Pesquisa": numero_chamado, "Ativo": "1"}
-
     log_console(f"[Busca] Verificando chamado {numero_chamado}...")
     try:
         response = requests.post(URL_BUSCAR_CHAMADO, headers=headers, json=payload)
         response.raise_for_status()
         data = response.json()
         log_console(f"[Busca] Retorno: {data}")
-
         return data.get("total") != "0"
     except requests.RequestException as e:
         log_console(f"[Busca] Erro: {str(e)}")
@@ -93,11 +91,9 @@ def buscar_chamado_existente(token, numero_chamado: str) -> bool or None:
 def criar_chamado(token, row: pd.Series) -> str or None:
     """Cria um novo chamado na Desk Manager."""
     headers = {"Authorization": token}
-
-    # Substituir valores NaT e None por strings vazias
+    # Corrigir valores NaT e None para strings vazias
     row = row.replace({pd.NaT: "", None: ""})
     row = row.astype(str)
-
     dados_chamado = {
         "TTableMaestro": {
             "Chave": "",
@@ -127,8 +123,7 @@ def criar_chamado(token, row: pd.Series) -> str or None:
             "Campo49": row.get("Chamados similares", ""),
         }
     }
-
-    log_console(f"[Criação] Criando chamado {row.get('Número do chamado','SemNumero')}...")
+    log_console(f"[Criação] Criando chamado {row.get('Número do chamado', 'SemNumero')}...")
     try:
         response = requests.put(URL_CRIAR_CHAMADO, headers=headers, json=dados_chamado)
         response.raise_for_status()
@@ -141,8 +136,7 @@ def criar_chamado(token, row: pd.Series) -> str or None:
 def processar_e_salvar_chamados(df: pd.DataFrame, nome_arquivo: str):
     """
     Processa a planilha e salva os chamados na Desk Manager.
-    Retorna:
-        total_inseridos (int), total_existentes (int), lista_de_erros (list)
+    Retorna: total_inseridos (int), total_existentes (int), lista_de_erros (list)
     """
     log_console("[DeskManager] Iniciando processamento...")
     token = autenticar()
@@ -154,11 +148,11 @@ def processar_e_salvar_chamados(df: pd.DataFrame, nome_arquivo: str):
     total_existentes = 0
     erros = []
 
-    # Limitar a 250 primeiros registros
-    df = df.head(250)
+    # Limitar ao 30 primeiros registros
+    df = df.head(30)
 
     for index, row in df.iterrows():
-        # Renovar token a cada 200 registros
+        # Renovar token a cada 200 registros (não vai ocorrer com 30, mas mantém a lógica)
         if index > 0 and index % 200 == 0:
             log_console("[Auth] Renovando token...")
             token = autenticar()
@@ -167,11 +161,8 @@ def processar_e_salvar_chamados(df: pd.DataFrame, nome_arquivo: str):
                 break
 
         numero_chamado = row.get("Número do chamado", "")
-
-        # Verificar se já existe
         existe = buscar_chamado_existente(token, numero_chamado)
         if existe is None:
-            # Erro na busca
             erros.append(numero_chamado)
             continue
         if existe:
@@ -179,7 +170,6 @@ def processar_e_salvar_chamados(df: pd.DataFrame, nome_arquivo: str):
             total_existentes += 1
             continue
 
-        # Criar
         resultado = criar_chamado(token, row)
         if resultado:
             log_console(f"[Sucesso] Chamado {numero_chamado} criado.")
@@ -196,10 +186,8 @@ def processar_e_salvar_chamados(df: pd.DataFrame, nome_arquivo: str):
 def login():
     """Exibe o formulário de login e verifica credenciais."""
     st.title("🔐 Login")
-
     usuario = st.text_input("Usuário", value="", max_chars=50)
     senha = st.text_input("Senha", type="password", value="", max_chars=50)
-
     if st.button("Entrar"):
         if usuario == USUARIO_PERMITIDO and senha == SENHA_CORRETA:
             st.session_state.logado = True
@@ -212,7 +200,6 @@ def login():
 # ======================================
 if "logado" not in st.session_state:
     st.session_state.logado = False
-
 if not st.session_state.logado:
     login()
     st.stop()
@@ -241,18 +228,13 @@ if st.session_state.planilha_df is None:
     if st.button("Carregar Planilha"):
         log_console("[Streamlit] Botão 'Carregar Planilha' pressionado.")
         caminho_arquivo = os.path.join("planilhas", planilha_selecionada)
-
         df = pd.read_excel(caminho_arquivo)
         df.index = df.index + 1
         df.fillna("", inplace=True)
-
-        # Ajustar "Chamados similares"
         if "Chamados similares" in df.columns:
             df["Chamados similares"] = df["Chamados similares"].apply(extrair_id_chamado_similar)
-
         st.session_state.planilha_df = df
         st.session_state.planilha_selecionada = planilha_selecionada
-
         st.success(f"Planilha '{planilha_selecionada}' carregada com sucesso!")
         st.dataframe(df.head())
 
@@ -263,16 +245,12 @@ if st.session_state.planilha_df is not None:
     if st.button("Executar Planilha"):
         st.info("Processando os dados... Aguarde.")
         log_console("[Streamlit] Botão 'Executar Planilha' pressionado.")
-
-        # Chamando a função final
         total_inseridos, total_existentes, erros = processar_e_salvar_chamados(
             st.session_state.planilha_df,
             st.session_state.planilha_selecionada
         )
-
         st.success(f"{total_inseridos} Chamados inseridos com sucesso.")
         st.warning(f"{total_existentes} Chamados não inseridos porque já existiam.")
-
         if erros:
             st.error("Chamados não inseridos por erro:")
             st.write(erros)
