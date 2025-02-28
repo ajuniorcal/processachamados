@@ -83,7 +83,8 @@ def buscar_chamado_existente(token, numero_chamado: str) -> bool or None:
         response.raise_for_status()
         data = response.json()
         log_console(f"[Busca] Retorno: {data}")
-        return data.get("total") != "0"
+        # Converter o valor para inteiro para comparar corretamente
+        return int(data.get("total", 0)) != 0
     except requests.RequestException as e:
         log_console(f"[Busca] Erro: {str(e)}")
         return None
@@ -148,7 +149,7 @@ def processar_e_salvar_chamados(df: pd.DataFrame, nome_arquivo: str):
     total_existentes = 0
     erros = []
 
-    # Processa todas as linhas da planilha (sem limitação)
+    # Processa todas as linhas da planilha
     for index, row in df.iterrows():
         # Renovar token a cada 200 registros
         if index > 0 and index % 200 == 0:
